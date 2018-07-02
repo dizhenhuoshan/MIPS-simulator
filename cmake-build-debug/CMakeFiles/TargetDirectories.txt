@@ -1,0 +1,3 @@
+/Users/wymt/code/mips-simulator/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/wymt/code/mips-simulator/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/wymt/code/mips-simulator/cmake-build-debug/CMakeFiles/mips_simulator.dir
