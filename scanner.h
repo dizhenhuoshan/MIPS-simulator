@@ -5,10 +5,12 @@
 #ifndef MIPS_SIMULATOR_SCANNER_H
 #define MIPS_SIMULATOR_SCANNER_H
 
-#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cstring>
 #include <string>
-#include <map>
+#include "paser.h"
 #include "constant.h"
 #include "codeline.h"
 
@@ -17,30 +19,54 @@ namespace mips
     class scanner
     {
     private:
+        std::fstream file; //读入的代码文件的名字
+        std::ostringstream oss; //将读入的代码文件存入字符串流
+        char *source_code; //整体读入的源代码
+        char *outer_ptr; //用于辅助strtok
         int line_cnt; //当前代码储存器中的行号
         std::string current_line; //当前行读到的的代码
         std::map<int, std::string> unknown_lable; //储存当前未定义的lable
+        char dtflag; //数据区 or 代码区标记 1-数据区 2-代码区
+        paser mips_paser;
         
-        void get_line() // 从当前的源代码中拿出一行
+        bool get_line() // 从当前的源代码中拿出一行
         {
-        
+            char *current_code = strtok_r(source_code, "\n", &outer_ptr);
+            if (current_code != NULL)
+            {
+                line_cnt++;
+                current_line = current_code;
+                return true;
+            }
+            else return false;
         }
         
-        void check_vaild() // 判断当前拿出的代码是否有效(排除注释等无效代码)
-        {
-        
-        }
     public:
-        scanner()
+        scanner(const char* file_name):file(file_name)
         {
+            oss << file.rdbuf();
+            std::string tmpstr = oss.str();
+            source_code = new char[tmpstr.size() + 10];
+            strcmp(source_code, tmpstr.c_str());
             line_cnt = 0;
+            outer_ptr = NULL;
+            dtflag = 1;
         }
         
-        ~scanner() = default;
+        ~scanner()
+        {
+            delete [] source_code;
+            delete outer_ptr;
+        }
         
         // 扫描处理源代码，并将它里面的data和text存入相关的位置
-        bool scan_code(std::vector<mips::command> &text_memery, char *date_memory, const std::string &source_code)
-        {}
+        bool scan_code(std::vector<mips::command> &text_memory, char *data_memory)
+        {
+            while (get_line())
+            {
+                mips_paser.paser_code(line_cnt, current_line, text_memory, data_memory, unknown_lable, dtflag);
+            }
+        }
     };
     
 }
