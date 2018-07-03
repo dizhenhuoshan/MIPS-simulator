@@ -5,11 +5,8 @@
 #ifndef MIPS_SIMULATOR_SCANNER_H
 #define MIPS_SIMULATOR_SCANNER_H
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
-#include <cstring>
-#include <string>
 #include "paser.h"
 #include "constant.h"
 #include "codeline.h"
@@ -60,11 +57,11 @@ namespace mips
         }
         
         // 扫描处理源代码，并将它里面的data和text存入相关的位置
-        bool scan_code(std::vector<mips::command> &text_memory, char *data_memory)
+        bool scan_code(std::vector<mips::command> &text_memory, char *data_memory_bottom, char *data_memory_pos)
         {
             while (get_line())
             {
-                mips_paser.paser_code(line_cnt, current_line, text_memory, data_memory, unknown_lable, dtflag);
+                mips_paser.paser_code(line_cnt, current_line, text_memory, data_memory_bottom, data_memory_pos, unknown_lable, dtflag);
             }
         }
     };

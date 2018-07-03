@@ -4,6 +4,11 @@
 
 #ifndef MIPS_SIMULATOR_CONSTANT_H
 #define MIPS_SIMULATOR_CONSTANT_H
+
+#include <iostream>
+#include <string>
+#include <cstring>
+
 namespace mips
 {
     struct byte
