@@ -1,1 +1,1 @@
-/Library/Developer/CommandLineTools/usr/bin/c++  -g -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/mips_simulator.dir/main.cpp.o  -o mips_simulator 
+/Library/Developer/CommandLineTools/usr/bin/c++   -m32 -g -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/mips_simulator.dir/main.cpp.o  -o mips_simulator 

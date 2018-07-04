@@ -82,19 +82,25 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/Users/wymt/code/mips-simulator/MipsTest/codeline.h">
-			<Option target="mips_simulator"/>
-		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/codeline.h">
 			<Option target="mips_simulator"/>
 		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/constant.h">
 			<Option target="mips_simulator"/>
 		</Unit>
+		<Unit filename="/Users/wymt/code/mips-simulator/decoder.h">
+			<Option target="mips_simulator"/>
+		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/main.cpp">
 			<Option target="mips_simulator"/>
 		</Unit>
+		<Unit filename="/Users/wymt/code/mips-simulator/memeory.h">
+			<Option target="mips_simulator"/>
+		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/paser.h">
+			<Option target="mips_simulator"/>
+		</Unit>
+		<Unit filename="/Users/wymt/code/mips-simulator/register.h">
 			<Option target="mips_simulator"/>
 		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/scanner.h">
