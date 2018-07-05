@@ -23,13 +23,7 @@ namespace mips
         {
             delete [] data_memory;
         }
-        
-        char *get_head()
-        {
-            return data_memory + 6 * 1024 * 1024;
-        }
-        
-        char *&get_bottom()
+        char *get_bottom()
         {
             return data_memory;
         }

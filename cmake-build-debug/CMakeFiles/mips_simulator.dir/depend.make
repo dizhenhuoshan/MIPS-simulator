@@ -3,6 +3,7 @@
 
 CMakeFiles/mips_simulator.dir/main.cpp.o: ../codeline.h
 CMakeFiles/mips_simulator.dir/main.cpp.o: ../constant.h
+CMakeFiles/mips_simulator.dir/main.cpp.o: ../decoder.h
 CMakeFiles/mips_simulator.dir/main.cpp.o: ../main.cpp
 CMakeFiles/mips_simulator.dir/main.cpp.o: ../memeory.h
 CMakeFiles/mips_simulator.dir/main.cpp.o: ../paser.h

@@ -17,11 +17,16 @@ namespace mips
         mips_register()
         {
             register_slot = new word[36];
-            register_slot[0].w_data_signed = 0;
+            for (int i = 0; i < 36; i++)
+                register_slot[i].w_data_signed = 0;
         }
         ~mips_register()
         {
             delete [] register_slot;
+        }
+        word* get_register()
+        {
+            return register_slot;
         }
         void set_stack(char *stack_address)
         {

@@ -160,6 +160,8 @@ namespace mips
         unsigned int get_align_pos(const unsigned int &offset, const unsigned int &n)
         {
             unsigned int block_length = static_cast<unsigned int>(pow(2, n));
+            if (offset % block_length == 0)
+                return 0;
             return (offset / block_length + 1) * block_length - offset;
         }
     
@@ -377,7 +379,7 @@ namespace mips
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rd = f_register[args[1]]; //rd为左值寄存器下标
-            tmpcommand.rs = f_register[args[2]]; //rs为右寄存器下标
+            tmpcommand.rs = f_register[args[2]]; //rs为第一存器下标
             if (check_register(args[3]))
                 tmpcommand.rt = f_register[args[3]]; //第三个是寄存器
             else if (!unsigned_flag) //立即数（有符号）
@@ -385,40 +387,42 @@ namespace mips
             else tmpcommand.imm_num.w_data_unsigned = static_cast<unsigned int>(std::stoul(args[3]));
         }
     
-        //3参数2型指令(Rd Rt label)处理
+        //3参数2型指令(Rd Rs label)处理
         void paser_3_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rd = f_register[args[1]]; //rd为左值寄存器下标
-            tmpcommand.rs = f_register[args[2]]; //rs为右寄存器下标
+            tmpcommand.rs = f_register[args[1]]; //rs为右一寄存器下标
+            if (check_register(args[2]))
+                tmpcommand.rt = f_register[args[2]]; //第二个参数是寄存器
+            else tmpcommand.imm_num.w_data_signed = std::stoi(args[2]);
             handle_code_label(args[3], text_label, data_label, unknown_label);
         }
         
-        //3参数1型指令(Rd Rt Rs/Imm)处理
+        //2参数1型指令(Rs Rt/Imm)处理
         void paser_2_args_rs(bool unsigned_flag)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rd = f_register[args[1]];
+            tmpcommand.rs = f_register[args[1]]; //不使用结果寄存器， 便于区分mul/div 的两种情况
             if (check_register(args[2])) //第二个参数是寄存器
-                tmpcommand.rs = f_register[args[2]];
+                tmpcommand.rt = f_register[args[2]];
             else if (!unsigned_flag) //立即数（有符号）
                 tmpcommand.imm_num.w_data_signed = std::stoi(args[2]);
             else tmpcommand.imm_num.w_data_unsigned = static_cast<unsigned int>(std::stoul(args[2]));
         }
     
-        //2参数2型指令(Rd label)处理
+        //2参数2型指令(Rs label)处理
         void paser_2_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rd = f_register[args[1]]; //rd为左值寄存器下标
+            tmpcommand.rs = f_register[args[1]]; //rd为左值寄存器下标
             handle_code_label(args[2], text_label, data_label, unknown_label);
         }
     
-        //2参数3型指令(Rd address)处理
+        //2参数3型指令(Rs address)处理
         void paser_2_args_address(std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rd = f_register[args[1]]; //rd为左值寄存器下标
+            tmpcommand.rs = f_register[args[1]]; //rd为左值寄存器下标
                 handle_code_address(args[2], data_label, unknown_label);
         }
         
@@ -457,7 +461,7 @@ namespace mips
             delete [] args;
         }
     
-        void encoder(std::string &current_line, std::vector<command> &text_memory, char *&data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label, std::map<std::string, std::vector<int>> &unknown_label, char &dtflag)
+        void encoder(std::string &current_line, std::vector<command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label, std::map<std::string, std::vector<int>> &unknown_label, char &dtflag)
         {
             split_line(current_line);
             if (arg_num == 0)
@@ -495,7 +499,6 @@ namespace mips
                 case add_:
                 case sub_:
                 case xor_:
-                case neg_:
                 case rem_:
                 case seq_:
                 case sge_:
@@ -510,7 +513,6 @@ namespace mips
                 case addiu_:
                 case subu_:
                 case xoru_:
-                case negu_:
                 case remu_:
                     paser_3_args_rs(true);
                     write_command(text_memory);
@@ -540,7 +542,12 @@ namespace mips
                     break;
                 case move_:
                 case li_:
+                case neg_:
                     paser_2_args_rs(false);
+                    write_command(text_memory);
+                    break;
+                case negu_:
+                    paser_2_args_rs(true);
                     write_command(text_memory);
                     break;
                 case beqz_:

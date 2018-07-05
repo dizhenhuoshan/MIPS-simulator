@@ -61,7 +61,7 @@ namespace mips
         }
         
         // 扫描处理源代码，并将它里面的data和text存入相关的位置
-        void scan_code(std::vector<mips::command> &text_memory, char *&data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label)
+        void scan_code(std::vector<mips::command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label)
         {
             while (get_line())
             {

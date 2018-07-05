@@ -27,7 +27,7 @@ namespace mips
     union word
     {
         int w_data_signed;
-        unsigned w_data_unsigned;
+        unsigned int w_data_unsigned;
         char *w_data_address;
         half h[2];
         char b[4];

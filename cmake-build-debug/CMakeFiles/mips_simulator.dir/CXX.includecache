@@ -20,6 +20,18 @@ string
 cstring
 -
 
+/Users/wymt/code/mips-simulator/decoder.h
+constant.h
+/Users/wymt/code/mips-simulator/constant.h
+codeline.h
+/Users/wymt/code/mips-simulator/codeline.h
+iostream
+-
+vector
+-
+map
+-
+
 /Users/wymt/code/mips-simulator/main.cpp
 scanner.h
 /Users/wymt/code/mips-simulator/scanner.h
@@ -27,6 +39,8 @@ memeory.h
 /Users/wymt/code/mips-simulator/memeory.h
 register.h
 /Users/wymt/code/mips-simulator/register.h
+decoder.h
+/Users/wymt/code/mips-simulator/decoder.h
 
 /Users/wymt/code/mips-simulator/memeory.h
 constant.h
