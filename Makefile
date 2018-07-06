@@ -1,9 +1,10 @@
-cc = g++
-pram = code
-deps = main.cpp
+TARGET=code
+SRCS = main.cpp
 
-$(pram): $(deps)
-	g++ -o $(pram) $(deps) -std=c++11
+OBJS = $(SRCS:.c=.o)
+
+$(TARGET):$(OBJS)
+	g++ main.cpp -o code -std=c++17
 
 clean:
 	rm -rf code
