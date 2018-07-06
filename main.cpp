@@ -6,6 +6,9 @@
 using namespace mips;
 int main(int argc, char **argv)
 {
+    ios::sync_with_stdio(false);
+    cin.tie(0);
+    cout.tie(0);
     std::vector<mips::command> text_memory;
     std::map<std::string, unsigned int> data_label;
     std::map<std::string, label_info> text_label;

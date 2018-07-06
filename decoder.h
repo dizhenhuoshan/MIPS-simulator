@@ -21,8 +21,8 @@ namespace mips
         char *data_memory_bottom; //假内存头地址
         unsigned int current_line; //当前执行到的行号
         command current_command;
-        std::map<unsigned int, std::string> debug_map;//debug
-        
+        //std::map<unsigned int, std::string> debug_map;//debug
+
         void clear_commmand(command &obj)
         {
             obj.OPT = label;
@@ -31,7 +31,7 @@ namespace mips
             obj.offset.w_data_signed = 0;
             obj.imm_num.w_data_signed = 0;
         }
-        
+
         void copy_command(command &obj, const command &src)
         {
             obj.OPT = src.OPT;
@@ -42,7 +42,7 @@ namespace mips
             obj.imm_num.w_data_signed = src.imm_num.w_data_signed;
             obj.offset.w_data_signed = src.offset.w_data_signed;
         }
-        
+
         void mul_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             long long left = left_src.w_data_signed;
@@ -50,7 +50,7 @@ namespace mips
             low.w_data_signed = static_cast<int>(left * right & 0xffffffff);
             high.w_data_signed = static_cast<int>((left * right)>>32);
         }
-    
+
         void mulu_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             unsigned long long left = left_src.w_data_unsigned;
@@ -58,19 +58,19 @@ namespace mips
             low.w_data_unsigned = static_cast<unsigned int>(left * right & 0xffffffff);
             high.w_data_unsigned = static_cast<unsigned int>((left * right)>>32);
         }
-    
+
         void div_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             low.w_data_signed = left_src.w_data_signed / right_src.w_data_signed;
             high.w_data_signed = left_src.w_data_signed - low.w_data_signed * right_src.w_data_signed;
         }
-        
+
         void divu_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             low.w_data_unsigned = left_src.w_data_unsigned / right_src.w_data_unsigned;
             high.w_data_unsigned = left_src.w_data_unsigned - low.w_data_unsigned * right_src.w_data_unsigned;
         }
-        
+
         void command_syscall(unsigned int &heap_bottom)
         {
             switch (register_slot[2].w_data_unsigned)
@@ -98,77 +98,77 @@ namespace mips
                     exit(register_slot[4].w_data_signed);
             }
         }
-        
+
     public:
         decoder(unsigned int main_pos, char *memory)
         {
             current_line = main_pos;
             data_memory_bottom = memory;
-            //for debug
-            debug_map[0] = "label";
-            debug_map[1] = "align";
-            debug_map[2] = "ascii";
-            debug_map[3] = "asciiz";
-            debug_map[4] = "byte";
-            debug_map[5] = "half";
-            debug_map[6] = "word";
-            debug_map[7] = "space";
-            debug_map[8] = "data";
-            debug_map[9] = "text";
-            debug_map[10] = "add";
-            debug_map[11] = "addu";
-            debug_map[12] = "addiu";
-            debug_map[13] = "sub";
-            debug_map[14] = "subu";
-            debug_map[15] = "mul";
-            debug_map[16] = "mulu";
-            debug_map[17] = "div";
-            debug_map[18] = "divu";
-            debug_map[19] = "xor";
-            debug_map[20] = "xoru";
-            debug_map[21] = "neg";
-            debug_map[22] = "negu";
-            debug_map[23] = "rem";
-            debug_map[24] = "remu";
-            debug_map[25] = "li";
-            debug_map[26] = "seq";
-            debug_map[27] = "sge";
-            debug_map[28] = "sgt";
-            debug_map[29] = "sle";
-            debug_map[30] = "slt";
-            debug_map[31] = "sne";
-            debug_map[32] = "b";
-            debug_map[33] = "beq";
-            debug_map[34] = "bne";
-            debug_map[35] = "bge";
-            debug_map[36] = "ble";
-            debug_map[37] = "bgt";
-            debug_map[38] = "blt";
-            debug_map[39] = "beqz";
-            debug_map[40] = "bnez";
-            debug_map[41] = "blez";
-            debug_map[42] = "bgez";
-            debug_map[43] = "bgtz";
-            debug_map[44] = "bltz";
-            debug_map[45] = "j";
-            debug_map[46] = "jr";
-            debug_map[47] = "jal";
-            debug_map[48] = "jalr";
-            debug_map[49] = "la";
-            debug_map[50] = "lb";
-            debug_map[51] = "lh";
-            debug_map[52] = "lw";
-            debug_map[53] = "sb";
-            debug_map[54] = "sh";
-            debug_map[55] = "sw";
-            debug_map[56] = "move";
-            debug_map[57] = "mfhi";
-            debug_map[58] = "mflo";
-            debug_map[59] = "nop";
-            debug_map[60] = "syscall";
+            // //for debug
+            // debug_map[0] = "label";
+            // debug_map[1] = "align";
+            // debug_map[2] = "ascii";
+            // debug_map[3] = "asciiz";
+            // debug_map[4] = "byte";
+            // debug_map[5] = "half";
+            // debug_map[6] = "word";
+            // debug_map[7] = "space";
+            // debug_map[8] = "data";
+            // debug_map[9] = "text";
+            // debug_map[10] = "add";
+            // debug_map[11] = "addu";
+            // debug_map[12] = "addiu";
+            // debug_map[13] = "sub";
+            // debug_map[14] = "subu";
+            // debug_map[15] = "mul";
+            // debug_map[16] = "mulu";
+            // debug_map[17] = "div";
+            // debug_map[18] = "divu";
+            // debug_map[19] = "xor";
+            // debug_map[20] = "xoru";
+            // debug_map[21] = "neg";
+            // debug_map[22] = "negu";
+            // debug_map[23] = "rem";
+            // debug_map[24] = "remu";
+            // debug_map[25] = "li";
+            // debug_map[26] = "seq";
+            // debug_map[27] = "sge";
+            // debug_map[28] = "sgt";
+            // debug_map[29] = "sle";
+            // debug_map[30] = "slt";
+            // debug_map[31] = "sne";
+            // debug_map[32] = "b";
+            // debug_map[33] = "beq";
+            // debug_map[34] = "bne";
+            // debug_map[35] = "bge";
+            // debug_map[36] = "ble";
+            // debug_map[37] = "bgt";
+            // debug_map[38] = "blt";
+            // debug_map[39] = "beqz";
+            // debug_map[40] = "bnez";
+            // debug_map[41] = "blez";
+            // debug_map[42] = "bgez";
+            // debug_map[43] = "bgtz";
+            // debug_map[44] = "bltz";
+            // debug_map[45] = "j";
+            // debug_map[46] = "jr";
+            // debug_map[47] = "jal";
+            // debug_map[48] = "jalr";
+            // debug_map[49] = "la";
+            // debug_map[50] = "lb";
+            // debug_map[51] = "lh";
+            // debug_map[52] = "lw";
+            // debug_map[53] = "sb";
+            // debug_map[54] = "sh";
+            // debug_map[55] = "sw";
+            // debug_map[56] = "move";
+            // debug_map[57] = "mfhi";
+            // debug_map[58] = "mflo";
+            // debug_map[59] = "nop";
+            // debug_map[60] = "syscall";
         }
         ~decoder() = default;
-        
+
         void decode_command(std::vector<mips::command> &text_memory, unsigned int &data_memory_pos, word *register_add)
         {
             register_slot = register_add;
