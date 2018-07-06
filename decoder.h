@@ -75,10 +75,10 @@ namespace mips
             switch (register_slot[2].w_data_unsigned)
             {
                 case 1:
-                    std::cerr << register_slot[4].w_data_signed;
+                    std::cout << register_slot[4].w_data_signed;
                     break;
                 case 4:
-                    std::cerr << register_slot[4].w_data_address;
+                    std::cout << register_slot[4].w_data_address;
                     break;
                 case 5:
                     std::cin >> register_slot[2].w_data_signed;

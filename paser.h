@@ -348,7 +348,7 @@ namespace mips
             byte *byte_arr = new byte[arg_num - 1];
             for (int i = 1; i < arg_num; i++) //注意0号是命令
             {
-                byte_arr[i].b_data = static_cast<char>(std::stoi(args[i]));
+                byte_arr[i - 1].b_data = static_cast<char>(std::stoi(args[i]));
             }
             memcpy(data_memory_pos, byte_arr, sizeof(byte) * (arg_num - 1));
             char *tmp = data_memory_pos;
@@ -360,7 +360,7 @@ namespace mips
             half *half_arr = new half[arg_num - 1];
             for (int i = 1; i < arg_num; i++)
             {
-                half_arr[i].h_data_unsigned = static_cast<unsigned short>(std::stoi(args[i]));
+                half_arr[i - 1].h_data_signed = static_cast<short>(std::stoi(args[i]));
             }
             memcpy(data_memory_pos, half_arr, sizeof(half) * (arg_num - 1));
             char *tmp = data_memory_pos;
@@ -372,7 +372,7 @@ namespace mips
             word *word_arr = new word[arg_num - 1];
             for (int i = 1; i < arg_num; i++)
             {
-                word_arr[i].w_data_unsigned = static_cast<unsigned int>(std::stoi(args[i]));
+                word_arr[i - 1].w_data_signed = std::stoi(args[i]);
             }
             memcpy(data_memory_pos, word_arr, sizeof(word) * (arg_num - 1));
             char *tmp = data_memory_pos;
