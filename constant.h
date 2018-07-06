@@ -50,14 +50,10 @@ namespace mips
     //储存一个函数的名字，开始行以及结束行
     struct label_info
     {
-        std::string name;
         unsigned int start_line;
-        unsigned int end_line;
         label_info()
         {
-            name = "";
             start_line = 0;
-            end_line = 0;
         }
     };
 }

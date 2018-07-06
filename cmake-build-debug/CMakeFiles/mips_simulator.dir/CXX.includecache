@@ -27,6 +27,8 @@ codeline.h
 /Users/wymt/code/mips-simulator/codeline.h
 iostream
 -
+algorithm
+-
 vector
 -
 map
@@ -56,6 +58,8 @@ cmath
 map
 -
 vector
+-
+sstream
 -
 
 /Users/wymt/code/mips-simulator/register.h

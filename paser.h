@@ -9,6 +9,7 @@
 #include <cmath>
 #include <map>
 #include <vector>
+#include <sstream>
 
 namespace mips
 {
@@ -126,12 +127,32 @@ namespace mips
             f_register["$lo"] = 33;
             f_register["$pc"] = 34;
         }
+    
+        void clear_commmand(command &obj)
+        {
+            obj.OPT = label;
+            obj.rt = obj.rs = obj.rd = 255;
+            obj.address.w_data_address = NULL;
+            obj.offset.w_data_signed = 0;
+            obj.imm_num.w_data_signed = 0;
+        }
         
         //判断是register还是label 1-register 0-label
         bool check_register(std::string &obj)
         {
             return f_register.find(obj) != f_register.end();
         }
+        
+        void special_split(const std::string &currentline)
+        {
+            arg_num = 2;
+            std::istringstream ss(currentline);
+            ss >> args[0];
+            unsigned long start = currentline.find_first_of('\"');
+            unsigned long length = currentline.find_last_of('\"') - start + 1;
+            args[1] = currentline.substr(start, length);
+        }
+        
         void split_line(const std::string &current_line)
         {
             arg_num = 0;
@@ -139,19 +160,25 @@ namespace mips
             char *p = tmpline;
             strcpy(tmpline, current_line.c_str());
             char *token = strtok_r(tmpline, ", \t", &inner_ptr);
-            while (token != NULL)
+            if (token == NULL) //空行
+                return;
+            if (strcmp(token, ".ascii") == 0 || strcmp(token, ".asciiz") == 0)
             {
-                if (token[0] == '#')
-                    break;
-                arg_num++;
-                args[arg_num - 1] = token;
-                //注意存字符串时如果字符串里有奇怪的东西要想办法整理一下
-//                if (strcmp(token, ".ascii") == 0 || strcmp(token, ".asciiz") == 0)
-//                {
-//
-//                }
-                tmpline = NULL;
-                token = strtok_r(tmpline, ", \t", &inner_ptr);
+                special_split(current_line);
+            }
+            else
+            {
+                while (token != NULL)
+                {
+                    if (token[0] == '#')
+                    {
+                        break;
+                    }
+                    arg_num++;
+                    args[arg_num - 1] = token;
+                    tmpline = NULL;
+                    token = strtok_r(tmpline, ", \t", &inner_ptr);
+                }
             }
             delete [] p;
         }
@@ -195,7 +222,11 @@ namespace mips
                         case '\?':
                             tmpstr[length++] = '\?';
                             break;
+                        case '\"':
+                            tmpstr[length++] = '\"';
+                            break;
                         default:
+                            std::cerr << obj << std::endl;
                             std::cerr << "string_modify in paser decode error" << std::endl;
                             break;
                     }
@@ -222,26 +253,15 @@ namespace mips
         void handle_global_text_label(std::string &label_arg, std::vector<command> &text_memory, std::map<std::string, label_info> &text_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             label_info tmp;
-            if(text_label.empty()) //当前label是第一个label
-            {
-                tmp.name = label_arg;
-                tmp.start_line = text_cnt;
-                text_label_flag = true;
-            }
-            else // 不是第一个label， 将上一个label的信息完善，并补充这个label的一些信息
-            {
-                text_label[tmplabel].end_line = text_cnt - 1;
-                tmp.name = label_arg;
-                tmp.start_line = text_cnt;
-                text_label_flag = true;
-            }
+            tmp.start_line = text_cnt;
+            text_label_flag = true;
             text_label[label_arg] = tmp;
             if (!unknown_label[label_arg].empty())
             {
                 std::vector<int> *tmp = &unknown_label[label_arg];
                 for (int i : *tmp)
                 {
-                    text_memory[i].address.w_data_unsigned = text_cnt + 1; //之前未定义address的label完善address
+                    text_memory[i - 1].address.w_data_unsigned = text_cnt; //之前未定义address的label完善address
                 }
             }
         }
@@ -254,7 +274,7 @@ namespace mips
                 std::vector<int> *tmp = &unknown_label[label_arg];
                 for (int i : *tmp)
                 {
-                    text_memory[i].address.w_data_address = data_memory_pos; //之前未定义address的label完善address
+                    text_memory[i - 1].address.w_data_address = data_memory_pos; //之前未定义address的label完善address
                 }
             }
         }
@@ -277,7 +297,7 @@ namespace mips
                     unsigned char register_num;
                     cal_offset_address(off_set, register_num, add_arg);
                     tmpcommand.offset.w_data_signed = off_set;
-                    tmpcommand.rs = register_num;
+                    tmpcommand.rt = register_num;
             }
             else
             {
@@ -314,7 +334,9 @@ namespace mips
         char* paser_asciiz(char *&data_memory_pos)
         {
             std::string tmpstr = string_modify(args[arg_num - 1]);
-            memcpy(data_memory_pos, tmpstr.c_str(), tmpstr.size() + 1);
+            size_t size = tmpstr.size();
+            memcpy(data_memory_pos, tmpstr.c_str(), size);
+            data_memory_pos[size] = '\0';
             char *tmp = data_memory_pos;
             data_memory_pos += tmpstr.size() + 1;
             return tmp;
@@ -414,7 +436,7 @@ namespace mips
         void paser_2_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rs = f_register[args[1]]; //rd为左值寄存器下标
+            tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
             handle_code_label(args[2], text_label, data_label, unknown_label);
         }
     
@@ -422,7 +444,7 @@ namespace mips
         void paser_2_args_address(std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
-            tmpcommand.rs = f_register[args[1]]; //rd为左值寄存器下标
+            tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
                 handle_code_address(args[2], data_label, unknown_label);
         }
         
@@ -466,7 +488,7 @@ namespace mips
             split_line(current_line);
             if (arg_num == 0)
                 return; //当前读到的为纯注释行，可以丢弃
-            tmpcommand = command();
+            clear_commmand(tmpcommand); //初始化tmpcommand
             switch (f_command[args[0]])
             {
                 case _align:

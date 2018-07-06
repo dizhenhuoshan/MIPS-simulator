@@ -58,7 +58,7 @@ namespace mips
             offset = other.offset;
             imm_num = other.imm_num;
         }
-        
+    
         ~command() = default;
     };
     

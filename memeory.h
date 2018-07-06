@@ -17,6 +17,7 @@ namespace mips
         mips_memeory()
         {
             data_memory = new char[6 * 1024 * 1024 + 1];
+            memset(data_memory, 0, 6*1024*1024);
         }
         
         ~mips_memeory()
