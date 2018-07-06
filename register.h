@@ -28,7 +28,7 @@ namespace mips
         {
             return register_slot;
         }
-        void set_stack(char *stack_address)
+        void set_stack(unsigned int stack_address)
         {
             register_slot[29].w_data_address = stack_address;
         }

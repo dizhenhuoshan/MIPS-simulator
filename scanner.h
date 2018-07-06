@@ -17,6 +17,7 @@ namespace mips
     {
     private:
         std::fstream file; //读入的代码文件的名字
+        paser mips_paser;
         std::ostringstream oss; //将读入的代码文件存入字符串流
         char *source_code; //整体读入的源代码
         char *outer_ptr; //用于辅助strtok
@@ -24,7 +25,7 @@ namespace mips
         std::string current_line; //当前行读到的的代码
         std::map<std::string, std::vector<int>> unknown_lable; //储存当前未定义的lable
         char dtflag; //数据区 or 代码区标记 1-数据区 2-代码区
-        paser mips_paser;
+        
         
         bool get_line() // 从当前的源代码中拿出一行
         {
@@ -43,7 +44,7 @@ namespace mips
         }
         
     public:
-        scanner(const char* file_name):file(file_name)
+        scanner(const char* file_name, char *data_memory_bottom):file(file_name), mips_paser(data_memory_bottom)
         {
             oss << file.rdbuf();
             std::string tmpstr = oss.str();
@@ -61,11 +62,11 @@ namespace mips
         }
         
         // 扫描处理源代码，并将它里面的data和text存入相关的位置
-        void scan_code(std::vector<mips::command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label)
+        void scan_code(std::vector<mips::command> &text_memory, char *data_memory_bottom, unsigned int &data_memory_pos, std::map<std::string, unsigned int> &data_label, std::map<std::string, label_info> &text_label)
         {
             while (get_line())
             {
-                mips_paser.encoder(current_line, text_memory, data_memory_bottom, data_memory_pos, data_label, text_label, unknown_lable, dtflag);
+                mips_paser.encoder(current_line, text_memory, data_memory_pos, data_label, text_label, unknown_lable, dtflag);
             }
         }
     };

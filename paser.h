@@ -21,6 +21,7 @@ namespace mips
         char* inner_ptr; // 辅助strtok
         command tmpcommand; //编码后的代码
         unsigned int text_cnt; //代码区地址(行号 1-based)
+        char *data_memory_bottom; //暂存假内存头地址
         std::string tmplabel; //暂存label
         bool text_label_flag; //上一行是不是一个text的label，如果是，本行的操作应写入text的map
         std::map<std::string, CommandType> f_command; //操作符映射表
@@ -238,7 +239,7 @@ namespace mips
         }
         
         //处理代码中的label
-        void handle_code_label(std::string &label_arg, std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void handle_code_label(std::string &label_arg, std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             if (text_label[label_arg].start_line == 0)
             {
@@ -266,7 +267,7 @@ namespace mips
             }
         }
         
-        void handle_global_data_label(char *&data_memory_pos, std::string &label_arg, std::map<std::string, char*> &data_label, std::vector<command> &text_memory, std::map<std::string, std::vector<int>> &unknown_label)
+        void handle_global_data_label(unsigned int &data_memory_pos, std::string &label_arg, std::map<std::string, unsigned int> &data_label, std::vector<command> &text_memory, std::map<std::string, std::vector<int>> &unknown_label)
         {
             data_label[label_arg] = data_memory_pos;
             if (!unknown_label[label_arg].empty())
@@ -289,7 +290,7 @@ namespace mips
         }
         
         //处理代码中的address
-        void handle_code_address(std::string &add_arg, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void handle_code_address(std::string &add_arg, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             if (add_arg[add_arg.size() - 1] == ')')
             {
@@ -313,79 +314,82 @@ namespace mips
         }
         
         //内存分配函数
-        void paser_align(char *data_memory_bottom, char *&data_memory_pos)
+        void paser_align(char *data_memory_bottom, unsigned int&data_memory_pos)
         {
             unsigned int n = static_cast<unsigned int> (std::stoi(args[arg_num - 1]));
-            unsigned int offset = get_align_pos(static_cast<const unsigned int>(data_memory_pos - data_memory_bottom), n);
-            memset(data_memory_pos, 0, offset);
+            unsigned int offset = get_align_pos(data_memory_pos, n);
+            memset(data_memory_bottom + data_memory_pos, 0, offset);
             data_memory_pos += offset;
         }
     
         //所有对data区域进行的操作， 函数返回值均返回该数据的起始地址
         //字符串处理写入函数
-        char* paser_ascii(char *&data_memory_pos)
+        unsigned int paser_ascii(unsigned int &data_memory_pos)
         {
             std::string tmpstr = string_modify(args[arg_num - 1]);
-            memcpy(data_memory_pos, tmpstr.c_str(), tmpstr.size());
-            char *tmp = data_memory_pos;
+            memcpy(data_memory_bottom + data_memory_pos, tmpstr.c_str(), tmpstr.size());
+            unsigned int tmp = data_memory_pos;
             data_memory_pos += tmpstr.size();
             return tmp;
         }
-        char* paser_asciiz(char *&data_memory_pos)
+    
+        unsigned int paser_asciiz(unsigned int &data_memory_pos)
         {
             std::string tmpstr = string_modify(args[arg_num - 1]);
             size_t size = tmpstr.size();
-            memcpy(data_memory_pos, tmpstr.c_str(), size);
-            data_memory_pos[size] = '\0';
-            char *tmp = data_memory_pos;
+            memcpy(data_memory_bottom + data_memory_pos, tmpstr.c_str(), size);
+            (data_memory_bottom + data_memory_pos)[size] = '\0';
+            unsigned int tmp = data_memory_pos;
             data_memory_pos += tmpstr.size() + 1;
             return tmp;
         }
         
         //byte half word写入函数
-        char* paser_byte(char *&data_memory_pos)
+        unsigned int paser_byte(unsigned int &data_memory_pos)
         {
             byte *byte_arr = new byte[arg_num - 1];
             for (int i = 1; i < arg_num; i++) //注意0号是命令
             {
                 byte_arr[i - 1].b_data = static_cast<char>(std::stoi(args[i]));
             }
-            memcpy(data_memory_pos, byte_arr, sizeof(byte) * (arg_num - 1));
-            char *tmp = data_memory_pos;
+            memcpy(data_memory_bottom + data_memory_pos, byte_arr, sizeof(byte) * (arg_num - 1));
+            unsigned int tmp = data_memory_pos;
             data_memory_pos += sizeof(byte) * (arg_num - 1);
             return tmp;
         }
-        char* paser_half(char *&data_memory_pos)
+    
+        unsigned int paser_half(unsigned int &data_memory_pos)
         {
             half *half_arr = new half[arg_num - 1];
             for (int i = 1; i < arg_num; i++)
             {
                 half_arr[i - 1].h_data_signed = static_cast<short>(std::stoi(args[i]));
             }
-            memcpy(data_memory_pos, half_arr, sizeof(half) * (arg_num - 1));
-            char *tmp = data_memory_pos;
+            memcpy(data_memory_bottom + data_memory_pos, half_arr, sizeof(half) * (arg_num - 1));
+            unsigned int tmp = data_memory_pos;
             data_memory_pos += sizeof(half) * (arg_num - 1);
             return tmp;
         }
-        char* paser_word(char *&data_memory_pos)
+    
+        unsigned int paser_word(unsigned int &data_memory_pos)
         {
             word *word_arr = new word[arg_num - 1];
             for (int i = 1; i < arg_num; i++)
             {
                 word_arr[i - 1].w_data_signed = std::stoi(args[i]);
             }
-            memcpy(data_memory_pos, word_arr, sizeof(word) * (arg_num - 1));
-            char *tmp = data_memory_pos;
+            memcpy(data_memory_bottom + data_memory_pos, word_arr, sizeof(word) * (arg_num - 1));
+            unsigned int tmp = data_memory_pos;
             data_memory_pos += sizeof(word) * (arg_num - 1);
             delete [] word_arr;
             return tmp;
         }
         
         //处理空内存分配
-        char* paser_space(char *&data_memory_pos)
+        unsigned int paser_space(unsigned int &data_memory_pos)
         {
-            char *tmp = data_memory_pos;
-            memset(data_memory_pos, 0, static_cast<size_t>(std::stoi(args[arg_num - 1])));
+            unsigned int tmp = data_memory_pos;
+            memset(data_memory_bottom + data_memory_pos, 0, static_cast<size_t>(std::stoi(args[arg_num - 1])));
             return tmp;
         }
         
@@ -410,7 +414,7 @@ namespace mips
         }
     
         //3参数2型指令(Rd Rs label)处理
-        void paser_3_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void paser_3_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]]; //rs为右一寄存器下标
@@ -433,7 +437,7 @@ namespace mips
         }
     
         //2参数2型指令(Rs label)处理
-        void paser_2_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void paser_2_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
@@ -441,7 +445,7 @@ namespace mips
         }
     
         //2参数3型指令(Rs address)处理
-        void paser_2_args_address(std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void paser_2_args_address(std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
@@ -456,7 +460,7 @@ namespace mips
         }
         
         //单参数2型指令(label)处理
-        void paser_1_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, char*> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        void paser_1_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             handle_code_label(args[1], text_label, data_label, unknown_label);
@@ -469,7 +473,7 @@ namespace mips
         }
         
     public:
-        paser()
+        paser(char *data_memory)
         {
             load_f_command();
             load_f_register();
@@ -477,13 +481,14 @@ namespace mips
             arg_num = 0;
             text_cnt = 1;
             args = new std::string[10];
+            data_memory_bottom = data_memory;
         }
         ~paser()
         {
             delete [] args;
         }
     
-        void encoder(std::string &current_line, std::vector<command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, std::map<std::string, char*> &data_label, std::map<std::string, label_info> &text_label, std::map<std::string, std::vector<int>> &unknown_label, char &dtflag)
+        void encoder(std::string &current_line, std::vector<command> &text_memory, unsigned int &data_memory_pos, std::map<std::string, unsigned int> &data_label, std::map<std::string, label_info> &text_label, std::map<std::string, std::vector<int>> &unknown_label, char &dtflag)
         {
             split_line(current_line);
             if (arg_num == 0)

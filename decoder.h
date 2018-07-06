@@ -18,6 +18,7 @@ namespace mips
     private:
         std::string tmpstr; //用于输入的暂存
         word *register_slot; //寄存器
+        char *data_memory_bottom; //假内存头地址
         unsigned int current_line; //当前执行到的行号
         command current_command;
         std::map<unsigned int, std::string> debug_map;//debug
@@ -70,7 +71,7 @@ namespace mips
             high.w_data_unsigned = left_src.w_data_unsigned - low.w_data_unsigned * right_src.w_data_unsigned;
         }
         
-        void command_syscall(char *&heap_bottom)
+        void command_syscall(unsigned int &heap_bottom)
         {
             switch (register_slot[2].w_data_unsigned)
             {
@@ -78,14 +79,14 @@ namespace mips
                     std::cout << register_slot[4].w_data_signed;
                     break;
                 case 4:
-                    std::cout << register_slot[4].w_data_address;
+                    std::cout << data_memory_bottom + register_slot[4].w_data_address;
                     break;
                 case 5:
                     std::cin >> register_slot[2].w_data_signed;
                     break;
                 case 8:
                     std::cin >> tmpstr;
-                    memcpy(register_slot[4].w_data_address, tmpstr.c_str(), std::min(register_slot[5].w_data_unsigned, static_cast<unsigned int>(tmpstr.size() + 1)));
+                    memcpy(data_memory_bottom + register_slot[4].w_data_address, tmpstr.c_str(), std::min(register_slot[5].w_data_unsigned, static_cast<unsigned int>(tmpstr.size() + 1)));
                     break;
                 case 9:
                     register_slot[2].w_data_address = heap_bottom;
@@ -99,9 +100,10 @@ namespace mips
         }
         
     public:
-        decoder(unsigned int main_pos)
+        decoder(unsigned int main_pos, char *memory)
         {
             current_line = main_pos;
+            data_memory_bottom = memory;
             //for debug
             debug_map[0] = "label";
             debug_map[1] = "align";
@@ -167,7 +169,7 @@ namespace mips
         }
         ~decoder() = default;
         
-        void decode_command(std::vector<mips::command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, word *register_add)
+        void decode_command(std::vector<mips::command> &text_memory, unsigned int &data_memory_pos, word *register_add)
         {
             register_slot = register_add;
             while (true)
@@ -546,7 +548,7 @@ namespace mips
                             register_slot[current_command.rs].w_data_address = current_command.address.w_data_address;
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             register_slot[current_command.rs].w_data_address = src;
                         }
                         current_line++;
@@ -555,13 +557,13 @@ namespace mips
                         if (current_command.rt == 255) //address是一个label
                         {
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(byte));
+                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address + data_memory_bottom, sizeof(byte));
                         }
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(byte));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(byte));
                         }
                         current_line++;
                         break;
@@ -569,54 +571,54 @@ namespace mips
                         if (current_command.rt == 255) //address是一个label
                         {
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(half));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + current_command.address.w_data_address, sizeof(half));
                         }
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(half));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(half));
                         }
                         current_line++;
                         break;
                     case lw_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(word));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + current_command.address.w_data_address, sizeof(word));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(word));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(word));
                         }
                         current_line++;
                         break;
                     case sb_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(byte));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(byte));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(byte));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(byte));
                         }
                         current_line++;
                         break;
                     case sh_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(half));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(half));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(half));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(half));
                         }
                         current_line++;
                         break;
                     case sw_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(word));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(word));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(word));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(word));
                         }
                         current_line++;
                         break;
