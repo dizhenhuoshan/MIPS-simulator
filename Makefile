@@ -3,10 +3,7 @@ pram = code
 deps = main.cpp
 
 $(pram): $(deps)
-	g++ -o $(pram) $(deps) -std=c++17
-
-%.o: %.c $(deps)
-	$(cc) -c $< -o $@
+	g++ -o $(pram) $(deps) -std=c++11
 
 clean:
-	rm -rf $(obj) $(pram)
+	rm -rf code
