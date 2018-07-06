@@ -27,7 +27,7 @@ namespace mips
         {
             obj.OPT = label;
             obj.rt = obj.rs = obj.rd = 255;
-            obj.address.w_data_address = NULL;
+            obj.address.w_data_address = -1;
             obj.offset.w_data_signed = 0;
             obj.imm_num.w_data_signed = 0;
         }
