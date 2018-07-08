@@ -18,19 +18,23 @@ namespace mips
     private:
         std::string tmpstr; //用于输入的暂存
         word *register_slot; //寄存器
+        char *data_memory_bottom; //假内存头地址
         unsigned int current_line; //当前执行到的行号
         command current_command;
+
+        #ifdef debug
         std::map<unsigned int, std::string> debug_map;//debug
-        
+        #endif
+    
         void clear_commmand(command &obj)
         {
             obj.OPT = label;
             obj.rt = obj.rs = obj.rd = 255;
-            obj.address.w_data_address = NULL;
+            obj.address.w_data_address = -1;
             obj.offset.w_data_signed = 0;
             obj.imm_num.w_data_signed = 0;
         }
-        
+
         void copy_command(command &obj, const command &src)
         {
             obj.OPT = src.OPT;
@@ -41,7 +45,7 @@ namespace mips
             obj.imm_num.w_data_signed = src.imm_num.w_data_signed;
             obj.offset.w_data_signed = src.offset.w_data_signed;
         }
-        
+
         void mul_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             long long left = left_src.w_data_signed;
@@ -49,7 +53,7 @@ namespace mips
             low.w_data_signed = static_cast<int>(left * right & 0xffffffff);
             high.w_data_signed = static_cast<int>((left * right)>>32);
         }
-    
+
         void mulu_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             unsigned long long left = left_src.w_data_unsigned;
@@ -57,20 +61,20 @@ namespace mips
             low.w_data_unsigned = static_cast<unsigned int>(left * right & 0xffffffff);
             high.w_data_unsigned = static_cast<unsigned int>((left * right)>>32);
         }
-    
+
         void div_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             low.w_data_signed = left_src.w_data_signed / right_src.w_data_signed;
             high.w_data_signed = left_src.w_data_signed - low.w_data_signed * right_src.w_data_signed;
         }
-        
+
         void divu_overflow(word &left_src, word &right_src, word &low, word &high)
         {
             low.w_data_unsigned = left_src.w_data_unsigned / right_src.w_data_unsigned;
             high.w_data_unsigned = left_src.w_data_unsigned - low.w_data_unsigned * right_src.w_data_unsigned;
         }
-        
-        void command_syscall(char *&heap_bottom)
+
+        void command_syscall(unsigned int &heap_bottom)
         {
             switch (register_slot[2].w_data_unsigned)
             {
@@ -78,18 +82,20 @@ namespace mips
                     std::cout << register_slot[4].w_data_signed;
                     break;
                 case 4:
-                    std::cout << register_slot[4].w_data_address;
+                    std::cout << data_memory_bottom + register_slot[4].w_data_address;
                     break;
                 case 5:
                     std::cin >> register_slot[2].w_data_signed;
                     break;
                 case 8:
                     std::cin >> tmpstr;
-                    memcpy(register_slot[4].w_data_address, tmpstr.c_str(), std::min(register_slot[5].w_data_unsigned, static_cast<unsigned int>(tmpstr.size() + 1)));
+                    memcpy(data_memory_bottom + register_slot[4].w_data_address, tmpstr.c_str(), std::min(register_slot[5].w_data_unsigned, static_cast<unsigned int>(tmpstr.size() + 1)));
                     break;
                 case 9:
                     register_slot[2].w_data_address = heap_bottom;
                     heap_bottom += register_slot[4].w_data_unsigned;
+                    while (heap_bottom % 4 != 0)
+                        heap_bottom++;
                     break;
                 case 10:
                     exit(0);
@@ -97,77 +103,79 @@ namespace mips
                     exit(register_slot[4].w_data_signed);
             }
         }
-        
+
     public:
-        decoder(unsigned int main_pos)
+        decoder(unsigned int main_pos, char *memory)
         {
             current_line = main_pos;
-            //for debug
-            debug_map[0] = "label";
-            debug_map[1] = "align";
-            debug_map[2] = "ascii";
-            debug_map[3] = "asciiz";
-            debug_map[4] = "byte";
-            debug_map[5] = "half";
-            debug_map[6] = "word";
-            debug_map[7] = "space";
-            debug_map[8] = "data";
-            debug_map[9] = "text";
-            debug_map[10] = "add";
-            debug_map[11] = "addu";
-            debug_map[12] = "addiu";
-            debug_map[13] = "sub";
-            debug_map[14] = "subu";
-            debug_map[15] = "mul";
-            debug_map[16] = "mulu";
-            debug_map[17] = "div";
-            debug_map[18] = "divu";
-            debug_map[19] = "xor";
-            debug_map[20] = "xoru";
-            debug_map[21] = "neg";
-            debug_map[22] = "negu";
-            debug_map[23] = "rem";
-            debug_map[24] = "remu";
-            debug_map[25] = "li";
-            debug_map[26] = "seq";
-            debug_map[27] = "sge";
-            debug_map[28] = "sgt";
-            debug_map[29] = "sle";
-            debug_map[30] = "slt";
-            debug_map[31] = "sne";
-            debug_map[32] = "b";
-            debug_map[33] = "beq";
-            debug_map[34] = "bne";
-            debug_map[35] = "bge";
-            debug_map[36] = "ble";
-            debug_map[37] = "bgt";
-            debug_map[38] = "blt";
-            debug_map[39] = "beqz";
-            debug_map[40] = "bnez";
-            debug_map[41] = "blez";
-            debug_map[42] = "bgez";
-            debug_map[43] = "bgtz";
-            debug_map[44] = "bltz";
-            debug_map[45] = "j";
-            debug_map[46] = "jr";
-            debug_map[47] = "jal";
-            debug_map[48] = "jalr";
-            debug_map[49] = "la";
-            debug_map[50] = "lb";
-            debug_map[51] = "lh";
-            debug_map[52] = "lw";
-            debug_map[53] = "sb";
-            debug_map[54] = "sh";
-            debug_map[55] = "sw";
-            debug_map[56] = "move";
-            debug_map[57] = "mfhi";
-            debug_map[58] = "mflo";
-            debug_map[59] = "nop";
-            debug_map[60] = "syscall";
+            data_memory_bottom = memory;
+#ifdef debug
+             debug_map[0] = "label";
+             debug_map[1] = "align";
+             debug_map[2] = "ascii";
+             debug_map[3] = "asciiz";
+             debug_map[4] = "byte";
+             debug_map[5] = "half";
+             debug_map[6] = "word";
+             debug_map[7] = "space";
+             debug_map[8] = "data";
+             debug_map[9] = "text";
+             debug_map[10] = "add";
+             debug_map[11] = "addu";
+             debug_map[12] = "addiu";
+             debug_map[13] = "sub";
+             debug_map[14] = "subu";
+             debug_map[15] = "mul";
+             debug_map[16] = "mulu";
+             debug_map[17] = "div";
+             debug_map[18] = "divu";
+             debug_map[19] = "xor";
+             debug_map[20] = "xoru";
+             debug_map[21] = "neg";
+             debug_map[22] = "negu";
+             debug_map[23] = "rem";
+             debug_map[24] = "remu";
+             debug_map[25] = "li";
+             debug_map[26] = "seq";
+             debug_map[27] = "sge";
+             debug_map[28] = "sgt";
+             debug_map[29] = "sle";
+             debug_map[30] = "slt";
+             debug_map[31] = "sne";
+             debug_map[32] = "b";
+             debug_map[33] = "beq";
+             debug_map[34] = "bne";
+             debug_map[35] = "bge";
+             debug_map[36] = "ble";
+             debug_map[37] = "bgt";
+             debug_map[38] = "blt";
+             debug_map[39] = "beqz";
+             debug_map[40] = "bnez";
+             debug_map[41] = "blez";
+             debug_map[42] = "bgez";
+             debug_map[43] = "bgtz";
+             debug_map[44] = "bltz";
+             debug_map[45] = "j";
+             debug_map[46] = "jr";
+             debug_map[47] = "jal";
+             debug_map[48] = "jalr";
+             debug_map[49] = "la";
+             debug_map[50] = "lb";
+             debug_map[51] = "lh";
+             debug_map[52] = "lw";
+             debug_map[53] = "sb";
+             debug_map[54] = "sh";
+             debug_map[55] = "sw";
+             debug_map[56] = "move";
+             debug_map[57] = "mfhi";
+             debug_map[58] = "mflo";
+             debug_map[59] = "nop";
+             debug_map[60] = "syscall";
+#endif
         }
         ~decoder() = default;
-        
-        void decode_command(std::vector<mips::command> &text_memory, char *data_memory_bottom, char *&data_memory_pos, word *register_add)
+
+        void decode_command(std::vector<mips::command> &text_memory, unsigned int &data_memory_pos, word *register_add)
         {
             register_slot = register_add;
             while (true)
@@ -546,7 +554,7 @@ namespace mips
                             register_slot[current_command.rs].w_data_address = current_command.address.w_data_address;
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             register_slot[current_command.rs].w_data_address = src;
                         }
                         current_line++;
@@ -555,13 +563,13 @@ namespace mips
                         if (current_command.rt == 255) //address是一个label
                         {
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(byte));
+                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address + data_memory_bottom, sizeof(byte));
                         }
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(byte));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(byte));
                         }
                         current_line++;
                         break;
@@ -569,54 +577,54 @@ namespace mips
                         if (current_command.rt == 255) //address是一个label
                         {
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(half));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + current_command.address.w_data_address, sizeof(half));
                         }
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(half));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(half));
                         }
                         current_line++;
                         break;
                     case lw_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(register_slot[current_command.rs].b, current_command.address.w_data_address, sizeof(word));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + current_command.address.w_data_address, sizeof(word));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            unsigned int src = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
                             memset(register_slot[current_command.rs].b, 0, sizeof(word));
-                            memcpy(register_slot[current_command.rs].b, src, sizeof(word));
+                            memcpy(register_slot[current_command.rs].b, data_memory_bottom + src, sizeof(word));
                         }
                         current_line++;
                         break;
                     case sb_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(byte));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(byte));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(byte));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(byte));
                         }
                         current_line++;
                         break;
                     case sh_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(half));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(half));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(half));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(half));
                         }
                         current_line++;
                         break;
                     case sw_:
                         if (current_command.rt == 255) //address是一个label
-                            memcpy(current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(word));
+                            memcpy(data_memory_bottom + current_command.address.w_data_address, register_slot[current_command.rs].b, sizeof(word));
                         else //address存在rt寄存器里并且有偏移量
                         {
-                            char *des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
-                            memcpy(des, register_slot[current_command.rs].b, sizeof(word));
+                            unsigned int des = register_slot[current_command.rt].w_data_address + current_command.offset.w_data_signed;
+                            memcpy(data_memory_bottom + des, register_slot[current_command.rs].b, sizeof(word));
                         }
                         current_line++;
                         break;
