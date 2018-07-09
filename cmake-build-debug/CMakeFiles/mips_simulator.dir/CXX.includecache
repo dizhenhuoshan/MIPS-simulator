@@ -6,12 +6,6 @@
 
 #IncludeRegexTransform: 
 
-/Users/wymt/code/mips-simulator/codeline.h
-string
--
-constant.h
-/Users/wymt/code/mips-simulator/constant.h
-
 /Users/wymt/code/mips-simulator/constant.h
 iostream
 -
@@ -23,8 +17,6 @@ cstring
 /Users/wymt/code/mips-simulator/decoder.h
 constant.h
 /Users/wymt/code/mips-simulator/constant.h
-codeline.h
-/Users/wymt/code/mips-simulator/codeline.h
 iostream
 -
 algorithm
@@ -43,14 +35,14 @@ register.h
 /Users/wymt/code/mips-simulator/register.h
 decoder.h
 /Users/wymt/code/mips-simulator/decoder.h
+iostream
+-
 
 /Users/wymt/code/mips-simulator/memeory.h
 constant.h
 /Users/wymt/code/mips-simulator/constant.h
 
 /Users/wymt/code/mips-simulator/paser.h
-codeline.h
-/Users/wymt/code/mips-simulator/codeline.h
 constant.h
 /Users/wymt/code/mips-simulator/constant.h
 cmath
@@ -75,6 +67,4 @@ paser.h
 /Users/wymt/code/mips-simulator/paser.h
 constant.h
 /Users/wymt/code/mips-simulator/constant.h
-codeline.h
-/Users/wymt/code/mips-simulator/codeline.h
 

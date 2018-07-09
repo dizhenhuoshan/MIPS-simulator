@@ -4,7 +4,6 @@
 #ifndef MIPS_SIMULATOR_PASER_H
 #define MIPS_SIMULATOR_PASER_H
 
-#include "codeline.h"
 #include "constant.h"
 #include <cmath>
 #include <map>
@@ -424,7 +423,7 @@ namespace mips
             handle_code_label(args[3], text_label, data_label, unknown_label);
         }
 
-        //2参数1型指令(Rs Rt/Imm)处理
+        //2参数1型指令(Rs Rt/Imm)处理 mul/div专用
         void paser_2_args_rs(bool unsigned_flag)
         {
             tmpcommand.OPT = f_command[args[0]];
@@ -435,21 +434,39 @@ namespace mips
                 tmpcommand.imm_num.w_data_signed = std::stoi(args[2]);
             else tmpcommand.imm_num.w_data_unsigned = static_cast<unsigned int>(std::stoul(args[2]));
         }
-
-        //2参数2型指令(Rs label)处理
+    
+        //2参数1型指令(Rd Rs/Imm)处理
+        void paser_2_args_rd(bool unsigned_flag)
+        {
+            tmpcommand.OPT = f_command[args[0]];
+            tmpcommand.rd = f_register[args[1]];
+            if (check_register(args[2])) //第二个参数是寄存器
+                tmpcommand.rs = f_register[args[2]];
+            else if (!unsigned_flag) //立即数（有符号）
+                tmpcommand.imm_num.w_data_signed = std::stoi(args[2]);
+            else tmpcommand.imm_num.w_data_unsigned = static_cast<unsigned int>(std::stoul(args[2]));
+        }
+        
+        //2参数3型指令(Rs label)处理
         void paser_2_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
             handle_code_label(args[2], text_label, data_label, unknown_label);
         }
-
-        //2参数3型指令(Rs address)处理
-        void paser_2_args_address(std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        //2参数4型指令(Rs address load)处理
+        void paser_2_args_address_l(std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
+        {
+            tmpcommand.OPT = f_command[args[0]];
+            tmpcommand.rd = f_register[args[1]]; //rs为左值寄存器下标
+            handle_code_address(args[2], data_label, unknown_label);
+        }
+        //2参数4型指令(Rs address write)处理
+        void paser_2_args_address_w(std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]]; //rs为左值寄存器下标
-                handle_code_address(args[2], data_label, unknown_label);
+            handle_code_address(args[2], data_label, unknown_label);
         }
 
         //单参数1型指令(Rs)处理
@@ -458,8 +475,13 @@ namespace mips
             tmpcommand.OPT = f_command[args[0]];
             tmpcommand.rs = f_register[args[1]];
         }
-
-        //单参数2型指令(label)处理
+        //单参数2型指令(Rd)处理
+        void paser_1_args_rd()
+        {
+            tmpcommand.OPT = f_command[args[0]];
+            tmpcommand.rd = f_register[args[1]];
+        }
+        //单参数3型指令(label)处理
         void paser_1_args_label(std::map<std::string, label_info> &text_label, std::map<std::string, unsigned int> &data_label, std::map<std::string, std::vector<int>> &unknown_label)
         {
             tmpcommand.OPT = f_command[args[0]];
@@ -570,11 +592,11 @@ namespace mips
                 case move_:
                 case li_:
                 case neg_:
-                    paser_2_args_rs(false);
+                    paser_2_args_rd(false);
                     write_command(text_memory);
                     break;
                 case negu_:
-                    paser_2_args_rs(true);
+                    paser_2_args_rd(true);
                     write_command(text_memory);
                     break;
                 case beqz_:
@@ -590,17 +612,23 @@ namespace mips
                 case lb_:
                 case lh_:
                 case lw_:
+                    paser_2_args_address_l(data_label, unknown_label);
+                    write_command(text_memory);
+                    break;
                 case sb_:
                 case sh_:
                 case sw_:
-                    paser_2_args_address(data_label, unknown_label);
+                    paser_2_args_address_w(data_label, unknown_label);
                     write_command(text_memory);
                     break;
                 case jr_:
                 case jalr_:
+                    paser_1_args_rs();
+                    write_command(text_memory);
+                    break;
                 case mfhi_:
                 case mflo_:
-                    paser_1_args_rs();
+                    paser_1_args_rd();
                     write_command(text_memory);
                     break;
                 case b_:

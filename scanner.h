@@ -9,7 +9,6 @@
 #include <sstream>
 #include "paser.h"
 #include "constant.h"
-#include "codeline.h"
 
 namespace mips
 {
