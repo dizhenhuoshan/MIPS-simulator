@@ -85,9 +85,6 @@
 		<Unit filename="/Users/wymt/code/mips-simulator/constant.h">
 			<Option target="mips_simulator"/>
 		</Unit>
-		<Unit filename="/Users/wymt/code/mips-simulator/decoder.h">
-			<Option target="mips_simulator"/>
-		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/main.cpp">
 			<Option target="mips_simulator"/>
 		</Unit>
@@ -95,6 +92,9 @@
 			<Option target="mips_simulator"/>
 		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/paser.h">
+			<Option target="mips_simulator"/>
+		</Unit>
+		<Unit filename="/Users/wymt/code/mips-simulator/pipeline.h">
 			<Option target="mips_simulator"/>
 		</Unit>
 		<Unit filename="/Users/wymt/code/mips-simulator/register.h">

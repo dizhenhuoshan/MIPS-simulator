@@ -129,6 +129,7 @@ namespace mips
         unsigned char OPT;
         unsigned char rd;
         word reg_data;
+        word reg_data2; //用于lo hi寄存器同时写入
         word address;
     };
     
@@ -137,6 +138,7 @@ namespace mips
         unsigned char OPT;
         unsigned char rd;
         word reg_data;
+        word reg_data2; //用于lo hi寄存器同时写入
     };
     
 }

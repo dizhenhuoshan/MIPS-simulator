@@ -22,8 +22,7 @@ namespace mips
         register_idex idex_register; // ID/EX寄存器 注意：如果是对low，high寄存器同时操作，rd_num为 32 + 33 = 65
         register_exmem exmem_register; // EX/MEM寄存器
         register_memwb memwb_register; // MEM/WB寄存器
-        char stall_cycle; //当前需要stall的周期数
-        bool reg_lock[36]; //寄存器锁
+        bool register_lock[36]; //寄存器锁
         bool mem_lock; //总线内存锁
         bool control_lock; //分支语句锁
     
@@ -32,33 +31,96 @@ namespace mips
             return cmd == b_ || cmd == beq_ || cmd == bne_ || cmd == bge_ || cmd == ble_ || cmd == bgt_ || cmd == blt_ || cmd == beqz_ || cmd == bnez_ || cmd == blez_ || cmd == bgez_ || cmd == bgtz_ || cmd == bltz_ || cmd == j_ || cmd == jr_ || cmd == jal_ || cmd == jalr_;
         }
         
-        void Instruction_Fetch(std::vector<command> &text_memory)
+        bool syscall_ID()
         {
-            if (mem_lock || control_lock) //内存总线锁和分支跳转锁
+            if (register_lock[2])
             {
                 ifid_register.current_command.OPT = 0;
-                return;
+                idex_register.OPT = 0;
+                return false;
             }
-            //寄存器锁check
-            if (reg_lock[text_memory[register_slot[34].w_data_unsigned].rs] || (text_memory[register_slot[34].w_data_unsigned].rt != 255 && reg_lock[text_memory[register_slot[34].w_data_unsigned].rt]))
+            idex_register.OPT = syscall_;
+            switch (register_slot[2].w_data_unsigned)
             {
-                ifid_register.current_command.OPT = 0;
-                return;
+                case 1:
+                    if (register_lock[4])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        return false;
+                    }
+                    idex_register.offset.w_data_unsigned = 1;
+                    idex_register.rt_imm_num = register_slot[4];
+                    return true;
+                case 4:
+                    if (register_lock[4])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        return false;
+                    }
+                    idex_register.offset.w_data_unsigned = 4;
+                    idex_register.address = register_slot[4];
+                    return true;
+                case 5:
+                    register_lock[2] = true; //v0寄存器上锁
+                    idex_register.offset.w_data_unsigned = 5;
+                    return true;
+                case 8:
+                    if (register_lock[4] || register_lock[5]) //检查a0、a1有没有被锁
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        return false;
+                    }
+                    idex_register.offset.w_data_unsigned = 8;
+                    idex_register.address = register_slot[4];
+                    idex_register.rt_imm_num = register_slot[5];
+                    return true;
+                case 9:
+                    if (register_lock[4])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        return false;
+                    }
+                    register_lock[2] = true;
+                    idex_register.offset.w_data_unsigned = 9;
+                    idex_register.rt_imm_num = register_slot[4];
+                    return true;
+                case 10:
+                    exit(0);
+                case 17:
+                    if (register_lock[4])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        return false;
+                    }
+                    exit(register_slot[4].w_data_signed);
+                default:
+                    std::cerr << "Error occured in syscall_ID" << std::endl;
+                    break;
             }
-            //注意lo和hi的锁
-            if ((text_memory[register_slot[34].w_data_unsigned].OPT == mfhi_ && reg_lock[32]) || (text_memory[register_slot[34].w_data_unsigned].OPT == mflo_ && reg_lock[33]))
-            {
-                ifid_register.current_command.OPT = 0;
-                return;
-            }
-            
-            ifid_register.current_command = text_memory[register_slot[34].w_data_unsigned];
-            if(check_control_lock(static_cast<CommandType>(ifid_register.current_command.OPT))) //如果是分支跳转语句，上锁
-                control_lock = true;
         }
         
-        void Instruction_Decode_Data_Preparation()
+        bool Instruction_Fetch(std::vector<command> &text_memory)
         {
+            if (control_lock || mem_lock) //内存锁和控制线锁
+            {
+                ifid_register.current_command.OPT = 0;
+                return false;
+            }
+            ifid_register.current_command = text_memory[register_slot[35].w_data_unsigned];
+            register_slot[35].w_data_unsigned++;
+            return true;
+        }
+        
+        bool Instruction_Decode_Data_Preparation()
+        {
+            bool flag = true; //返回值
+            if (ifid_register.current_command.OPT == label) //本行被stall了，不执行命令
+                flag = true;
             idex_register.OPT = ifid_register.current_command.OPT;
             switch (static_cast<CommandType>(ifid_register.current_command.OPT))
             {
@@ -77,12 +139,22 @@ namespace mips
                 case sle_:
                 case slt_:
                 case sne_:
+                    //判断读取的寄存器有没有被加锁
+                    if ((ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs]) || (ifid_register.current_command.rt != 255 && register_lock[ifid_register.current_command.rt]))
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
                     idex_register.rd_num = ifid_register.current_command.rd;
-                    reg_lock[ifid_register.current_command.rd] = true; //即将写入rd寄存器，rd寄存器加锁
+                    register_lock[ifid_register.current_command.rd] = true; //即将写入rd寄存器，rd寄存器加锁
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
                     if (ifid_register.current_command.rt != 255) //判断第三个参数是立即数还是寄存器
                         idex_register.rt_imm_num = register_slot[ifid_register.current_command.rt];
                     else idex_register.rt_imm_num = ifid_register.current_command.imm_num;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case neg_:
                 case negu_:
@@ -91,21 +163,31 @@ namespace mips
                 case mulu_:
                 case div_:
                 case divu_:
+                    //判断读取的寄存器有没有被加锁
+                    if ((ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs]) || (ifid_register.current_command.rt != 255 && register_lock[ifid_register.current_command.rt]))
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
                     if(ifid_register.current_command.rd == 255) //判断二参数乘除还是三参数乘除
                     {
-                        reg_lock[32] = true; // 即将写入hi寄存器，hi寄存器加锁
-                        reg_lock[33] = true; // 即将写入lo寄存器，lo寄存器加锁
+                        register_lock[32] = true; // 即将写入hi寄存器，hi寄存器加锁
+                        register_lock[33] = true; // 即将写入lo寄存器，lo寄存器加锁
                         idex_register.rd_num = 65;
                     }
                     else
                     {
-                        reg_lock[ifid_register.current_command.rd] = true;
+                        register_lock[ifid_register.current_command.rd] = true; //rd寄存器加锁
                         idex_register.rd_num = ifid_register.current_command.rd;
                     }
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
                     if (ifid_register.current_command.rt != 255) //判断第三个参数是立即数还是寄存器
                         idex_register.rt_imm_num = register_slot[ifid_register.current_command.rt];
                     else idex_register.rt_imm_num = ifid_register.current_command.imm_num;
+                    ifid_register.current_command.OPT = 0; //ifid寄存器复位
+                    flag = true;
                     break;
                 case beq_:
                 case bne_:
@@ -113,11 +195,22 @@ namespace mips
                 case ble_:
                 case bgt_:
                 case blt_:
+                    //判断读取的寄存器有没有被加锁
+                    if ((ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs]) || (ifid_register.current_command.rt != 255 && register_lock[ifid_register.current_command.rt]))
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
+                    control_lock = true; //分支跳转锁
                     idex_register.rd_num = 34; //分支跳转命令将会写入pc寄存器
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
                     if (ifid_register.current_command.rt != 255) //第二个参数是寄存器
                         idex_register.rt_imm_num = register_slot[ifid_register.current_command.rt];
                     else idex_register.rt_imm_num = ifid_register.current_command.imm_num;
+                    ifid_register.current_command.OPT = 0; //ifid寄存器复位
+                    flag = true;
                     break;
                 case beqz_:
                 case bnez_:
@@ -125,48 +218,131 @@ namespace mips
                 case bgez_:
                 case bgtz_:
                 case bltz_:
+                    //判断读取的寄存器有没有被加锁
+                    if (ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs])
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
+                    control_lock = true;
                     idex_register.rd_num = 34;
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
+                    ifid_register.current_command.OPT = 0;
+                    flag = true;
                     break;
                 case la_:
                 case lb_:
                 case lh_:
                 case lw_:
+                    register_lock[ifid_register.current_command.rd] = true; //即将写入rd寄存器，加锁
                     idex_register.rd_num = ifid_register.current_command.rd;
                     idex_register.address = ifid_register.current_command.address;
                     idex_register.offset = ifid_register.current_command.offset;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case sb_:
                 case sh_:
                 case sw_:
+                    //判断读取的寄存器有没有被加锁
+                    if (ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs])
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
                     idex_register.address = ifid_register.current_command.address;
                     idex_register.offset = ifid_register.current_command.offset;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case b_:
                 case j_:
+                    control_lock = true; // 分支跳转锁
                     idex_register.address = ifid_register.current_command.address;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case jr_:
+                    control_lock = true; // 分支跳转锁
                     idex_register.address = register_slot[ifid_register.current_command.rs];
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case jal_:
-                    reg_lock[34] = true; //锁pc寄存器
+                    control_lock = true;
+                    register_lock[34] = true; //锁pc寄存器
                     idex_register.address = ifid_register.current_command.address;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case jalr_:
-                    reg_lock[34] = true;
+                    control_lock = true;
+                    register_lock[34] = true; //锁pc
                     idex_register.address = register_slot[ifid_register.current_command.rs];
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
                 case li_:
+                    register_lock[ifid_register.current_command.rd] = true; //rd寄存器加锁
+                    idex_register.rd_num = ifid_register.current_command.rd;
+                    idex_register.rt_imm_num = ifid_register.current_command.imm_num;
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
                 case move_:
-                    reg_lock[ifid_register.current_command.rs] = true;
+                    //判断读取的寄存器有没有被加锁
+                    if (ifid_register.current_command.rs != 255 && register_lock[ifid_register.current_command.rs])
+                    {
+                        ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                        idex_register.OPT = 0; //复位idex寄存器
+                        flag = false;
+                        break;
+                    }
+                    register_lock[ifid_register.current_command.rs] = true;
+                    idex_register.rd_num = ifid_register.current_command.rd;
+                    idex_register.rt_imm_num = register_slot[ifid_register.current_command.rs];
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
                     break;
-                case mfhi_:break;
-                case mflo_:break;
-                case nop_:break;
-                case syscall_:break;
-                
+                case mfhi_:
+                    if (register_lock[32])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        flag = false;
+                        break;
+                    }
+                    register_lock[ifid_register.current_command.rd] = true;
+                    idex_register.rd_num = ifid_register.current_command.rd;
+                    idex_register.rt_imm_num = register_slot[32];
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
+                    break;
+                case mflo_:
+                    if (register_lock[33])
+                    {
+                        ifid_register.current_command.OPT = 0;
+                        idex_register.OPT = 0;
+                        flag = false;
+                        break;
+                    }
+                    register_lock[ifid_register.current_command.rd] = true;
+                    idex_register.rd_num = ifid_register.current_command.rd;
+                    idex_register.rt_imm_num = register_slot[33];
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
+                    break;
+                case nop_:
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    flag = true;
+                    break;
+                case syscall_:
+                    flag = syscall_ID();
+                    ifid_register.current_command.OPT = 0; //复位ifid寄存器
+                    break;
                 case label:
                     break;
                 case _align:
@@ -181,19 +357,43 @@ namespace mips
                     std::cerr << "Error occured in ID" << std::endl;
                     break;
             }
+            return flag;
         }
         
-        void Execution()
+        bool Execution()
         {
+            bool flag = true;
             exmem_register.OPT = idex_register.OPT;
+            if (idex_register.OPT == 0)
+                return true;
             switch (static_cast<CommandType>(idex_register.OPT))
             {
-                case add_:break;
-                case addu_:break;
-                case addiu_:break;
-                case sub_:break;
-                case subu_:break;
-                case mul_:break;
+                case add_:
+                    exmem_register.reg_data.w_data_signed = idex_register.rs.w_data_signed + idex_register.rt_imm_num.w_data_signed;
+                    exmem_register.rd = idex_register.rd_num;
+                    break;
+                case addu_:
+                    exmem_register.reg_data.w_data_unsigned = idex_register.rs.w_data_unsigned + idex_register.rt_imm_num.w_data_unsigned;
+                    exmem_register.rd = idex_register.rd_num;
+                    break;
+                case addiu_:
+                    exmem_register.reg_data.w_data_unsigned = idex_register.rs.w_data_unsigned + idex_register.rt_imm_num.w_data_unsigned;
+                    exmem_register.rd = idex_register.rd_num;
+                    break;
+                case sub_:
+                    exmem_register.reg_data.w_data_signed = idex_register.rs.w_data_signed - idex_register.rt_imm_num.w_data_signed;
+                    exmem_register.rd = idex_register.rd_num;
+                    break;
+                case subu_:
+                    exmem_register.reg_data.w_data_unsigned = idex_register.rs.w_data_unsigned - idex_register.rt_imm_num.w_data_unsigned;
+                    exmem_register.rd = idex_register.rd_num;
+                    break;
+                case mul_:
+                    if (idex_register.rd_num == 65)
+                    {
+                        exmem_register.rd = 65;
+                    }
+                    break;
                 case mulu_:break;
                 case div_:break;
                 case divu_:break;

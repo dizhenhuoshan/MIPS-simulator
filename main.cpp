@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     mips_register fake_register;
     unsigned int heap_pos = 0;
     unsigned int stack_pos = 6 * 1024 * 1024;
-    scanner mips_scanner("4.s", memory.get_bottom());
+    scanner mips_scanner("1.s", memory.get_bottom());
     mips_scanner.scan_code(text_memory, memory.get_bottom(), heap_pos, data_label, text_label);
     fake_register.set_stack(stack_pos);
     decoder mips_decoder(text_label["main"].start_line, memory.get_bottom());
