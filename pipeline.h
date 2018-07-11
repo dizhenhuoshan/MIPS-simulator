@@ -1015,6 +1015,7 @@ namespace mips
             memset(&exmem_register, 0, sizeof(exmem_register));
             memset(&memwb_register, 0, sizeof(memwb_register));
             memset(register_lock, 0, 36 * sizeof(char));
+            data_lock = false;
             mem_lock = false;
             control_lock = false;
             register_slot[34].w_data_unsigned = start_line;
