@@ -27,7 +27,7 @@ namespace mips
         bool mem_lock; //总线内存锁
         bool exit_flag; //程序终止标记
         std::string tmpstr; //syscall里面输入用的临时字符串
-        std::bitset<2> *bht;
+        std::bitset<16384> bht[2];
         std::map<unsigned int, std::string> debug_map;//debug
         unsigned int cycle_cnt; //debug
         
@@ -61,17 +61,17 @@ namespace mips
         
         void taken_stronger(unsigned int line_cnt)
         {
-            switch (bht[line_cnt].to_ulong())
+            switch (bht[1][line_cnt] * 2 + bht[0][line_cnt])
             {
                 case 0:
-                    bht[line_cnt][0] = 1;
+                    bht[0][line_cnt] = 1;
                     break;
                 case 1:
-                    bht[line_cnt][0] = 0;
-                    bht[line_cnt][1] = 1;
+                    bht[1][line_cnt] = 1;
+                    bht[0][line_cnt] = 0;
                     break;
                 case 2:
-                    bht[line_cnt][0] = 0;
+                    bht[0][line_cnt] = 1;
                     break;
                 case 3:
                     break;
@@ -80,17 +80,17 @@ namespace mips
         
         void taken_weaker(unsigned int line_cnt)
         {
-            switch (bht[line_cnt].to_ulong())
+            switch (static_cast<char>(bht[1][line_cnt]) * 2 + static_cast<char>(bht[0][line_cnt]))
             {
                 case 3:
-                    bht[line_cnt][0] = 0;
+                    bht[0][line_cnt] = 1;
                     break;
                 case 2:
-                    bht[line_cnt][1] = 0;
-                    bht[line_cnt][0] = 1;
+                    bht[1][line_cnt] = 0;
+                    bht[0][line_cnt] = 1;
                     break;
                 case 1:
-                    bht[line_cnt][0] = 0;
+                    bht[0][line_cnt] = 0;
                     break;
                 case 0:
                     break;
@@ -99,7 +99,8 @@ namespace mips
         
         bool check_taken(unsigned int line_cnt)
         {
-            return bht[line_cnt].to_ulong() > 1;
+            line_cnt = line_cnt % 16384;
+            return static_cast<char>(bht[1][line_cnt]) * 2 + static_cast<char>(bht[0][line_cnt]) > 1;
         }
         
         void taken(unsigned int line_cnt)
@@ -1100,7 +1101,6 @@ namespace mips
             mem_lock = false;
             register_slot[34].w_data_unsigned = start_line;
             tmpstr = "";
-            bht = new std::bitset<2> [16384];
             //             for debug
             cycle_cnt = 0;
             debug_map[0] = "label";
@@ -1168,7 +1168,7 @@ namespace mips
         }
         ~decoder()
         {
-            delete [] bht;
+        
         }
     
         void pipeline(unsigned int &data_memory_pos, char *data_memory_bottom, std::vector<command> &text_memory)
@@ -1176,9 +1176,11 @@ namespace mips
             while (true)
             {
                 Write_Back();
+                mem_lock = false;
                 Memory_Access(data_memory_pos, data_memory_bottom);
                 Execution();
                 Instruction_Decode_Data_Preparation();
+                mem_lock = false;
                 Instruction_Fetch(text_memory);
             }
         }
