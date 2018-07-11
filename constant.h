@@ -56,5 +56,91 @@ namespace mips
             start_line = 0;
         }
     };
+    
+    class command
+    {
+        friend class paser;
+        friend class decoder;
+    private:
+        unsigned char OPT; //储存操作类型
+        unsigned char rd; //储存代码中调用的第一个寄存器序号
+        unsigned char rs; //储存代码中调用的第二个寄存器序号
+        unsigned char rt; //储存代码中调用的第三个寄存器序号
+        word address; //储存地址（代码行数/数据地址）
+        word offset; //储存出现的偏移量
+        word imm_num; //储存出现的数字
+    
+    
+    public:
+        command()
+        {
+            rd = static_cast<unsigned char>(255);
+            rs = static_cast<unsigned char>(255);
+            rt = static_cast<unsigned char>(255);
+            OPT = 0;
+            address.w_data_signed = 0;
+            offset.w_data_signed = 0;
+            imm_num.w_data_signed = 0;
+        }
+//        command(const CommandType &objOPT, const char &objrd = static_cast<const char &>(255),
+//                const char &objrs = static_cast<const char &>(255),
+//                const char &objrt = static_cast<const char &>(255), const int &objaddress = -1,
+//                const int &objoffset = 0, char *&objconstant)
+//        {
+//            OPT = objOPT;
+//            rd = objrd;
+//            rs = objrs;
+//            rt = objrs;
+//            address = objaddress;
+//            offset = objoffset;
+//            constant = objconstant;
+//        }
+//
+        command(const command &other)
+        {
+            OPT = other.OPT;
+            rd = other.rd;
+            rs = other.rs;
+            rt = other.rt;
+            address = other.address;
+            offset = other.offset;
+            imm_num = other.imm_num;
+        }
+        
+        ~command() = default;
+    };
+    
+    struct register_ifid
+    {
+        command current_command;
+    };
+    
+    struct register_idex
+    {
+        unsigned char OPT;
+        unsigned char rd_num;
+        word rs;
+        word rt_imm_num;
+        word address;
+        word offset;
+    };
+    
+    struct register_exmem
+    {
+        unsigned char OPT;
+        unsigned char rd;
+        word reg_data;
+        word reg_data2; //用于lo hi寄存器写入
+        word address;
+    };
+    
+    struct register_memwb
+    {
+        unsigned char OPT;
+        unsigned char rd;
+        word reg_data;
+        word reg_data2; //用于lo hi寄存器同时写入
+    };
+    
 }
 #endif //MIPS_SIMULATOR_CONSTANT_H
