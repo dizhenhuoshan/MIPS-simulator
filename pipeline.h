@@ -8,6 +8,7 @@
 #include "constant.h"
 #include <iostream>
 #include <algorithm>
+#include <bitset>
 #include <vector>
 #include <map>
 
@@ -24,9 +25,9 @@ namespace mips
         char register_lock[36]; //寄存器锁
         bool data_lock; //数据Hazard标记
         bool mem_lock; //总线内存锁
-        bool control_lock; //分支语句锁
         bool exit_flag; //程序终止标记
         std::string tmpstr; //syscall里面输入用的临时字符串
+        std::bitset<2> *bht;
         std::map<unsigned int, std::string> debug_map;//debug
         unsigned int cycle_cnt; //debug
         
@@ -57,6 +58,72 @@ namespace mips
             low.w_data_unsigned = left_src.w_data_unsigned / right_src.w_data_unsigned;
             high.w_data_unsigned = left_src.w_data_unsigned - low.w_data_unsigned * right_src.w_data_unsigned;
         }
+        
+        void taken_stronger(unsigned int line_cnt)
+        {
+            switch (bht[line_cnt].to_ulong())
+            {
+                case 0:
+                    bht[line_cnt][0] = 1;
+                    break;
+                case 1:
+                    bht[line_cnt][0] = 0;
+                    bht[line_cnt][1] = 1;
+                    break;
+                case 2:
+                    bht[line_cnt][0] = 0;
+                    break;
+                case 3:
+                    break;
+            }
+        }
+        
+        void taken_weaker(unsigned int line_cnt)
+        {
+            switch (bht[line_cnt].to_ulong())
+            {
+                case 3:
+                    bht[line_cnt][0] = 0;
+                    break;
+                case 2:
+                    bht[line_cnt][1] = 0;
+                    bht[line_cnt][0] = 1;
+                    break;
+                case 1:
+                    bht[line_cnt][0] = 0;
+                    break;
+                case 0:
+                    break;
+            }
+        }
+        
+        bool check_taken(unsigned int line_cnt)
+        {
+            return bht[line_cnt].to_ulong() > 1;
+        }
+        
+        void taken(unsigned int line_cnt)
+        {
+            line_cnt = line_cnt % 16384;
+            if (!check_taken(line_cnt))
+            {
+                ifid_register = register_ifid(); //IF阶段的操作清空, ID置空
+                register_slot[34] = idex_register.address;
+            }
+            taken_stronger(line_cnt);
+        }
+        
+        void not_taken(unsigned int line_cnt)
+        {
+            line_cnt = line_cnt % 16384;
+            if (check_taken(line_cnt))
+            {
+                ifid_register = register_ifid(); //IF阶段的操作清空, ID置空
+                register_slot[34] = idex_register.address;
+            }
+            taken_weaker(line_cnt);
+        }
+        
         void syscall_ID()
         {
             if (register_lock[2])
@@ -232,11 +299,11 @@ namespace mips
         {
             if (data_lock)
             {
-//                mem_lock = false; //data锁生效时，不会读取数据，故内存锁可以关闭
+                mem_lock = false; //data锁生效时，不会读取数据，故内存锁可以关闭
 //                data_lock = false; //data锁用过就解开
                 return;
             }
-            if (mem_lock || control_lock || exit_flag) //内存锁和控制线锁
+            if (mem_lock || exit_flag) //内存锁和退出标记
             {
                 ifid_register = register_ifid();
                 return;
@@ -345,13 +412,22 @@ namespace mips
                         memset(&idex_register, 0, sizeof(idex_register)); //复位idex寄存器
                         break;
                     }
-                    control_lock = true; //分支跳转锁
                     idex_register.rd_num = 34; //分支跳转命令将会写入pc寄存器
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
                     if (ifid_register.current_command.rt != 255) //第二个参数是寄存器
                         idex_register.rt_imm_num = register_slot[ifid_register.current_command.rt];
                     else idex_register.rt_imm_num = ifid_register.current_command.imm_num;
-                    idex_register.address = ifid_register.current_command.address;
+                    
+                    idex_register.offset.w_data_unsigned = register_slot[34].w_data_unsigned - 1; //将pc寄存器的值暂存，便于更新bht
+                    if (check_taken(idex_register.offset.w_data_unsigned)) //会跳转
+                    {
+                        idex_register.address = register_slot[34];
+                        register_slot[34] = ifid_register.current_command.address;
+                    }
+                    else //不会跳转
+                    {
+                        idex_register.address = ifid_register.current_command.address;
+                    }
                     ifid_register = register_ifid(); //ifid寄存器复位
                     break;
                 case beqz_:
@@ -367,10 +443,19 @@ namespace mips
                         memset(&idex_register, 0, sizeof(idex_register)); //复位idex寄存器
                         break;
                     }
-                    control_lock = true;
                     idex_register.rd_num = 34;
                     idex_register.rs = register_slot[ifid_register.current_command.rs];
-                    idex_register.address = ifid_register.current_command.address;
+                    
+                    idex_register.offset.w_data_unsigned = register_slot[34].w_data_unsigned - 1;
+                    if (check_taken(idex_register.offset.w_data_unsigned)) //会跳转
+                    {
+                        idex_register.address = register_slot[34];
+                        register_slot[34] = ifid_register.current_command.address;
+                    }
+                    else
+                    {
+                        idex_register.address = ifid_register.current_command.address;
+                    }
                     ifid_register = register_ifid(); //复位ifid寄存器
                     break;
                 case la_:
@@ -421,8 +506,7 @@ namespace mips
                     break;
                 case b_:
                 case j_:
-                    control_lock = true; // 分支跳转锁
-                    idex_register.address = ifid_register.current_command.address;
+                    register_slot[34] = ifid_register.current_command.address;
                     ifid_register = register_ifid(); //复位ifid寄存器
                     break;
                 case jr_:
@@ -432,15 +516,14 @@ namespace mips
                         memset(&idex_register, 0, sizeof(idex_register)); //复位idex寄存器
                         break;
                     }
-                    control_lock = true; // 分支跳转锁
-                    idex_register.address = register_slot[ifid_register.current_command.rs];
+                    register_slot[34] = register_slot[ifid_register.current_command.rs];
                     ifid_register = register_ifid(); //复位ifid寄存器
                     break;
                 case jal_:
-                    control_lock = true;
                     register_lock[31]++; //锁ra
-                    idex_register.rs.w_data_unsigned = register_slot[34].w_data_unsigned;
-                    idex_register.address = ifid_register.current_command.address;
+                    idex_register.rd_num = 31;
+                    idex_register.rs = register_slot[34];
+                    register_slot[34] = ifid_register.current_command.address;
                     ifid_register = register_ifid(); //复位ifid寄存器
                     break;
                 case jalr_:
@@ -450,10 +533,10 @@ namespace mips
                         memset(&idex_register, 0, sizeof(idex_register)); //复位idex寄存器
                         break;
                     }
-                    control_lock = true;
                     register_lock[31]++; //锁ra
+                    idex_register.rd_num = 31;
                     idex_register.rs.w_data_unsigned = register_slot[34].w_data_unsigned;
-                    idex_register.address = register_slot[ifid_register.current_command.rs];
+                    register_slot[34] = register_slot[ifid_register.current_command.rs]; //pc寄存器直接取跳转值
                     ifid_register = register_ifid(); //复位ifid寄存器
                     break;
                 case li_:
@@ -649,88 +732,86 @@ namespace mips
                     exmem_register.reg_data.w_data_signed = static_cast<int>(idex_register.rs.w_data_signed != idex_register.rt_imm_num.w_data_signed);
                     break;
                 case b_:
-                    register_slot[34] = idex_register.address; //直接写入pc
-                    control_lock = false; //解开分支跳转锁
                     break;
                 case beq_:
                     if (idex_register.rs.w_data_signed == idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bne_:
                     if (idex_register.rs.w_data_signed != idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bge_:
                     if (idex_register.rs.w_data_signed >= idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case ble_:
                     if (idex_register.rs.w_data_signed <= idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bgt_:
                     if (idex_register.rs.w_data_signed > idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case blt_:
                     if (idex_register.rs.w_data_signed < idex_register.rt_imm_num.w_data_signed)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case beqz_:
                     if (idex_register.rs.w_data_signed == 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bnez_:
                     if (idex_register.rs.w_data_signed != 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case blez_:
                     if (idex_register.rs.w_data_signed <= 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bgez_:
                     if (idex_register.rs.w_data_signed >= 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bgtz_:
                     if (idex_register.rs.w_data_signed > 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case bltz_:
                     if (idex_register.rs.w_data_signed < 0)
-                        register_slot[34] = idex_register.address;
-                    control_lock = false;
+                        taken(idex_register.offset.w_data_unsigned);
+                    else
+                        not_taken(idex_register.offset.w_data_unsigned);
                     break;
                 case j_:
-                    register_slot[34] = idex_register.address;
-                    control_lock = false;
-                    break;
                 case jr_:
-                    register_slot[34] = idex_register.address;
-                    control_lock = false;
                     break;
                 case jal_:
-                    exmem_register.rd = 31;
-                    exmem_register.reg_data = idex_register.rs;
-                    register_slot[34] = idex_register.address;
-                    control_lock = false;
-                    break;
                 case jalr_:
                     exmem_register.rd = 31;
                     exmem_register.reg_data = idex_register.rs;
-                    register_slot[34] = idex_register.address;
-                    control_lock = false;
                     break;
                 case la_:
                 case lb_:
@@ -1017,9 +1098,9 @@ namespace mips
             memset(register_lock, 0, 36 * sizeof(char));
             data_lock = false;
             mem_lock = false;
-            control_lock = false;
             register_slot[34].w_data_unsigned = start_line;
             tmpstr = "";
+            bht = new std::bitset<2> [16384];
             //             for debug
             cycle_cnt = 0;
             debug_map[0] = "label";
@@ -1085,7 +1166,10 @@ namespace mips
             debug_map[60] = "syscall";
         
         }
-        ~decoder() = default;
+        ~decoder()
+        {
+            delete [] bht;
+        }
     
         void pipeline(unsigned int &data_memory_pos, char *data_memory_bottom, std::vector<command> &text_memory)
         {
