@@ -251,6 +251,7 @@ namespace mips
                 case 1:
                     break;
                 case 4:
+                    mem_lock = true;
                     std::cout << exmem_register.address.w_data_unsigned + data_memory_bottom;
                     break;
                 case 5:
@@ -258,11 +259,13 @@ namespace mips
                     std::cin >> memwb_register.reg_data.w_data_signed;
                     break;
                 case 8:
+                    mem_lock = true;
                     std::cin >> tmpstr;
                     memcpy(data_memory_bottom + exmem_register.address.w_data_address, tmpstr.c_str(), std::min(exmem_register.reg_data2.w_data_unsigned, static_cast<unsigned int>(tmpstr.size() + 1)));
                     tmpstr = "";
                     break;
                 case 9:
+                    mem_lock = true;
                     memwb_register.rd = 2;
                     while (data_memory_pos % 4 != 0)
                         data_memory_pos++;
@@ -301,7 +304,6 @@ namespace mips
             if (data_lock)
             {
                 mem_lock = false; //data锁生效时，不会读取数据，故内存锁可以关闭
-//                data_lock = false; //data锁用过就解开
                 return;
             }
             if (mem_lock || exit_flag) //内存锁和退出标记
@@ -1052,6 +1054,7 @@ namespace mips
                     break;
                 case syscall_:
                     syscall_WB();
+                    mem_lock = false;
                     break;
                     
                 case nop_:
@@ -1101,69 +1104,69 @@ namespace mips
             mem_lock = false;
             register_slot[34].w_data_unsigned = start_line;
             tmpstr = "";
-            //             for debug
-            cycle_cnt = 0;
-            debug_map[0] = "label";
-            debug_map[1] = "align";
-            debug_map[2] = "ascii";
-            debug_map[3] = "asciiz";
-            debug_map[4] = "byte";
-            debug_map[5] = "half";
-            debug_map[6] = "word";
-            debug_map[7] = "space";
-            debug_map[8] = "data";
-            debug_map[9] = "text";
-            debug_map[10] = "add";
-            debug_map[11] = "addu";
-            debug_map[12] = "addiu";
-            debug_map[13] = "sub";
-            debug_map[14] = "subu";
-            debug_map[15] = "mul";
-            debug_map[16] = "mulu";
-            debug_map[17] = "div";
-            debug_map[18] = "divu";
-            debug_map[19] = "xor";
-            debug_map[20] = "xoru";
-            debug_map[21] = "neg";
-            debug_map[22] = "negu";
-            debug_map[23] = "rem";
-            debug_map[24] = "remu";
-            debug_map[25] = "li";
-            debug_map[26] = "seq";
-            debug_map[27] = "sge";
-            debug_map[28] = "sgt";
-            debug_map[29] = "sle";
-            debug_map[30] = "slt";
-            debug_map[31] = "sne";
-            debug_map[32] = "b";
-            debug_map[33] = "beq";
-            debug_map[34] = "bne";
-            debug_map[35] = "bge";
-            debug_map[36] = "ble";
-            debug_map[37] = "bgt";
-            debug_map[38] = "blt";
-            debug_map[39] = "beqz";
-            debug_map[40] = "bnez";
-            debug_map[41] = "blez";
-            debug_map[42] = "bgez";
-            debug_map[43] = "bgtz";
-            debug_map[44] = "bltz";
-            debug_map[45] = "j";
-            debug_map[46] = "jr";
-            debug_map[47] = "jal";
-            debug_map[48] = "jalr";
-            debug_map[49] = "la";
-            debug_map[50] = "lb";
-            debug_map[51] = "lh";
-            debug_map[52] = "lw";
-            debug_map[53] = "sb";
-            debug_map[54] = "sh";
-            debug_map[55] = "sw";
-            debug_map[56] = "move";
-            debug_map[57] = "mfhi";
-            debug_map[58] = "mflo";
-            debug_map[59] = "nop";
-            debug_map[60] = "syscall";
+            // //             for debug
+            // cycle_cnt = 0;
+            // debug_map[0] = "label";
+            // debug_map[1] = "align";
+            // debug_map[2] = "ascii";
+            // debug_map[3] = "asciiz";
+            // debug_map[4] = "byte";
+            // debug_map[5] = "half";
+            // debug_map[6] = "word";
+            // debug_map[7] = "space";
+            // debug_map[8] = "data";
+            // debug_map[9] = "text";
+            // debug_map[10] = "add";
+            // debug_map[11] = "addu";
+            // debug_map[12] = "addiu";
+            // debug_map[13] = "sub";
+            // debug_map[14] = "subu";
+            // debug_map[15] = "mul";
+            // debug_map[16] = "mulu";
+            // debug_map[17] = "div";
+            // debug_map[18] = "divu";
+            // debug_map[19] = "xor";
+            // debug_map[20] = "xoru";
+            // debug_map[21] = "neg";
+            // debug_map[22] = "negu";
+            // debug_map[23] = "rem";
+            // debug_map[24] = "remu";
+            // debug_map[25] = "li";
+            // debug_map[26] = "seq";
+            // debug_map[27] = "sge";
+            // debug_map[28] = "sgt";
+            // debug_map[29] = "sle";
+            // debug_map[30] = "slt";
+            // debug_map[31] = "sne";
+            // debug_map[32] = "b";
+            // debug_map[33] = "beq";
+            // debug_map[34] = "bne";
+            // debug_map[35] = "bge";
+            // debug_map[36] = "ble";
+            // debug_map[37] = "bgt";
+            // debug_map[38] = "blt";
+            // debug_map[39] = "beqz";
+            // debug_map[40] = "bnez";
+            // debug_map[41] = "blez";
+            // debug_map[42] = "bgez";
+            // debug_map[43] = "bgtz";
+            // debug_map[44] = "bltz";
+            // debug_map[45] = "j";
+            // debug_map[46] = "jr";
+            // debug_map[47] = "jal";
+            // debug_map[48] = "jalr";
+            // debug_map[49] = "la";
+            // debug_map[50] = "lb";
+            // debug_map[51] = "lh";
+            // debug_map[52] = "lw";
+            // debug_map[53] = "sb";
+            // debug_map[54] = "sh";
+            // debug_map[55] = "sw";
+            // debug_map[56] = "move";
+            // debug_map[57] = "mfhi";
+            // debug_map[58] = "mflo";
+            // debug_map[59] = "nop";
+            // debug_map[60] = "syscall";
         
         }
         ~decoder()
